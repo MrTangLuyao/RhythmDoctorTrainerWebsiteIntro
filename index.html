@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>节奏医生修改器 — Rhythm Doctor Trainer</title>
+
+  <meta name="description" content="《节奏医生》修改器：满分自动演奏、变速、关卡直达。免费开源，Windows / macOS 一键安装。">
+  <meta name="theme-color" content="#171614">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="节奏医生修改器 — Rhythm Doctor Trainer">
+  <meta property="og:description" content="满分自动演奏 · 变速 · 关卡直达。免费开源，一键安装。">
+  <meta property="og:image" content="https://raw.githubusercontent.com/Cohenjikan/RhythmDoctorTrainer/main/docs/assets/hero.png">
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23171614'/%3E%3Cpath d='M3 17h6l2.5-7 4 12 3-9 1.8 4H29' fill='none' stroke='%23ff5d5d' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="lib/design/fonts.css">
+
+  <style>
+    :root {
+      --bg: #171614;
+      --surface: #232220;
+      --surface-2: #2c2b28;
+      --border: #3a3936;
+      --text: #f2f1ef;
+      --muted: #a3a19c;
+      --beat: #ff5d5d;                /* heartbeat red — Rhythm Doctor vibe */
+      --win: #2e6fd8;                 /* Windows blue */
+      --win-hi: #3d7fe8;
+      --mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI",
+                   "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    ::selection { background: rgba(255, 93, 93, 0.3); }
+    a { color: inherit; }
+    :focus-visible { outline: 2px solid var(--beat); outline-offset: 3px; border-radius: 8px; }
+
+    /* ─── tiny lang toggle, top-right on every screen ─── */
+    #lang-toggle {
+      position: fixed; top: 16px; right: 16px; z-index: 50;
+      font-family: var(--mono); font-size: 13px;
+      color: var(--muted);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 999px; padding: 6px 14px; cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    #lang-toggle:hover { color: var(--text); border-color: var(--muted); }
+
+    /* ─── Screen 1: landing ─── */
+    #home {
+      min-height: 100svh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 24px;
+    }
+    .beatline { width: 120px; height: 34px; margin-bottom: 26px; }
+    .beatline path {
+      stroke: var(--beat); stroke-width: 2.5; fill: none;
+      stroke-linecap: round; stroke-linejoin: round;
+      stroke-dasharray: 300; stroke-dashoffset: 300;
+      animation: beat-draw 2.2s ease forwards;
+    }
+    @keyframes beat-draw { to { stroke-dashoffset: 0; } }
+
+    #home h1 { margin: 0; font-size: clamp(34px, 7vw, 56px); font-weight: 800; letter-spacing: 0.01em; }
+    #home .en-name { margin: 10px 0 0; font-family: var(--mono); font-size: clamp(13px, 2.5vw, 16px); color: var(--muted); letter-spacing: 0.12em; }
+    #home .tagline { margin: 22px 0 0; font-size: clamp(15px, 3vw, 17px); color: var(--muted); }
+
+    .big-btns { display: flex; gap: 16px; margin-top: 44px; flex-wrap: wrap; justify-content: center; }
+    .big-btn {
+      display: inline-flex; align-items: center; gap: 12px;
+      font-size: 18px; font-weight: 700;
+      border: none; border-radius: 16px;
+      padding: 18px 36px; cursor: pointer;
+      font-family: inherit;
+      transition: transform 0.12s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+    .big-btn:hover { transform: translateY(-2px); }
+    .big-btn:active { transform: scale(0.97); }
+    .big-btn svg { width: 22px; height: 22px; }
+    .btn-win {
+      background: var(--win); color: #fff;
+      box-shadow: 0 6px 24px rgba(46, 111, 216, 0.35);
+    }
+    .btn-win:hover { background: var(--win-hi); box-shadow: 0 8px 30px rgba(46, 111, 216, 0.5); }
+    .btn-mac {
+      background: #f2f1ef; color: #1a1916;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+    }
+    .btn-mac:hover { background: #ffffff; }
+
+    #home .foot {
+      margin-top: 56px;
+      font-size: 12.5px; color: var(--muted);
+    }
+    #home .foot a { color: var(--muted); text-decoration-color: var(--border); }
+    #home .foot a:hover { color: var(--text); }
+
+    /* ─── Screen 2: install panels (slide up over the landing) ─── */
+    .panel {
+      position: fixed; inset: 0; z-index: 40;
+      background: var(--bg);
+      overflow-y: auto;
+      transform: translateY(100%);
+      visibility: hidden;
+      transition: transform 0.38s cubic-bezier(0.3, 0.8, 0.3, 1), visibility 0.38s;
+    }
+    .panel.open { transform: translateY(0); visibility: visible; }
+
+    .panel-inner { max-width: 640px; margin: 0 auto; padding: 84px 24px 64px; }
+
+    .back-btn {
+      position: fixed; top: 16px; left: 16px; z-index: 50;
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: inherit; font-size: 14px; font-weight: 600;
+      color: var(--muted);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 999px; padding: 8px 18px; cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+      opacity: 0; pointer-events: none;
+    }
+    .panel.open ~ .back-btn, body.panel-open .back-btn { opacity: 1; pointer-events: auto; }
+    .back-btn:hover { color: var(--text); border-color: var(--muted); }
+
+    .panel h2 {
+      display: flex; align-items: center; gap: 14px;
+      margin: 0 0 6px; font-size: 30px; font-weight: 800;
+    }
+    .panel h2 svg { width: 28px; height: 28px; flex-shrink: 0; }
+    .key-hint { font-size: 13px; color: var(--muted); margin: 0 0 34px; }
+    .key-hint kbd {
+      font-family: var(--mono); font-size: 13px;
+      color: var(--beat); background: rgba(255, 93, 93, 0.12);
+      border: 1px solid rgba(255, 93, 93, 0.35);
+      border-radius: 7px; padding: 2px 10px;
+    }
+
+    .stp { display: flex; gap: 16px; margin-bottom: 26px; }
+    .stp-n {
+      flex-shrink: 0; width: 34px; height: 34px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; font-weight: 800; font-size: 16px;
+      background: var(--surface-2); color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .stp-b { min-width: 0; font-size: 17px; padding-top: 3px; }
+    .stp-b .small { font-size: 13px; color: var(--muted); }
+    .stp-b strong { color: var(--beat); font-weight: 700; }
+
+    .dl-btn {
+      display: inline-flex; align-items: center; gap: 10px;
+      margin-top: 12px;
+      font-size: 16px; font-weight: 700; text-decoration: none;
+      background: var(--win); color: #fff;
+      border-radius: 12px; padding: 13px 26px;
+      box-shadow: 0 5px 18px rgba(46, 111, 216, 0.3);
+      transition: background 0.2s, transform 0.12s;
+    }
+    .dl-btn:hover { background: var(--win-hi); transform: translateY(-1px); }
+    .dl-btn svg { width: 18px; height: 18px; }
+
+    .cmd {
+      position: relative;
+      margin-top: 12px;
+      background: #100f0e; border: 1px solid var(--border);
+      border-radius: 12px; padding: 13px 92px 13px 15px;
+      overflow-x: auto;
+    }
+    .cmd code { font-family: var(--mono); font-size: 12.5px; color: #ffb3a8; white-space: pre; display: block; }
+    .copy-btn {
+      position: absolute; top: 9px; right: 9px;
+      font-family: inherit; font-size: 13px; font-weight: 600;
+      color: var(--text); background: var(--surface-2);
+      border: 1px solid var(--border); border-radius: 9px;
+      padding: 6px 14px; cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .copy-btn:hover { border-color: var(--muted); }
+    .copy-btn.ok { color: #7ed98f; border-color: rgba(126, 217, 143, 0.45); }
+
+    .done-line { margin-top: 8px; font-size: 17px; }
+    .panel .fine {
+      margin-top: 40px; padding-top: 18px;
+      border-top: 1px solid var(--border);
+      font-size: 12.5px; color: var(--muted);
+    }
+    .panel .fine a { color: var(--muted); }
+    .panel .fine a:hover { color: var(--text); }
+    .panel .fine .cmd { margin-top: 8px; }
+
+    @media (max-width: 520px) {
+      .big-btns { flex-direction: column; width: 100%; max-width: 320px; }
+      .big-btn { justify-content: center; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .panel { transition: none; }
+      .beatline path { animation: none; stroke-dashoffset: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <button id="lang-toggle" type="button" onclick="toggleLang()">EN</button>
+
+  <!-- ─── Screen 1 ─── -->
+  <main id="home">
+    <svg class="beatline" viewBox="0 0 120 34" aria-hidden="true"><path d="M2 20h22l6-12 9 22 8-16 5 6h22l6-12 9 22 8-16 5 6h16"/></svg>
+    <h1 data-i18n="title">节奏医生修改器</h1>
+    <p class="en-name">RHYTHM DOCTOR TRAINER</p>
+    <p class="tagline" data-i18n="tagline">满分自动演奏 · 变速 · 关卡直达 — 免费开源</p>
+
+    <div class="big-btns">
+      <button class="big-btn btn-win" type="button" onclick="openPanel('windows')">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.1 10.6 4v7.6H3V5.1zm0 13.8 7.6 1.1v-7.5H3v6.4zM11.4 3.9 21 2.5v9.1h-9.6V3.9zm0 16.2 9.6 1.4v-9H11.4v7.6z"/></svg>
+        <span data-i18n="btn-win">Windows 安装</span>
+      </button>
+      <button class="big-btn btn-mac" type="button" onclick="openPanel('macos')">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.7 12.9c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.9-1.6 0-3.1 1-4 2.4-1.7 3-.4 7.4 1.2 9.8.8 1.2 1.8 2.5 3.1 2.4 1.2 0 1.7-.8 3.2-.8s1.9.8 3.2.8c1.3 0 2.2-1.2 3-2.4.9-1.4 1.3-2.7 1.3-2.8-.1 0-2.6-1-2.7-3.8zM14.4 5.2c.7-.8 1.1-1.9 1-3.2-1 .1-2.2.7-2.9 1.5-.6.7-1.2 1.9-1 3 1.1.1 2.2-.5 2.9-1.3z"/></svg>
+        <span data-i18n="btn-mac">macOS 安装</span>
+      </button>
+    </div>
+
+    <p class="foot">
+      <span data-i18n="foot-line">免费开源 · 仅供单机娱乐与录制</span><br>
+      <a href="https://github.com/Cohenjikan/RhythmDoctorTrainer" target="_blank" rel="noopener">GitHub (Windows) ↗</a>
+      &nbsp;·&nbsp;
+      <a href="https://github.com/MrTangLuyao/RhythmDoctorTrainerMac" target="_blank" rel="noopener">GitHub (macOS) ↗</a>
+    </p>
+  </main>
+
+  <!-- ─── Screen 2: Windows ─── -->
+  <section class="panel" id="panel-windows" aria-hidden="true">
+    <div class="panel-inner">
+      <h2>
+        <svg viewBox="0 0 24 24" fill="#2e6fd8" aria-hidden="true"><path d="M3 5.1 10.6 4v7.6H3V5.1zm0 13.8 7.6 1.1v-7.5H3v6.4zM11.4 3.9 21 2.5v9.1h-9.6V3.9zm0 16.2 9.6 1.4v-9H11.4v7.6z"/></svg>
+        <span data-i18n="btn-win">Windows 安装</span>
+      </h2>
+      <p class="key-hint"><span data-i18n="need">需要：Steam 版《节奏医生》</span> · <span data-i18n="menukey">游戏里按</span> <kbd>Insert</kbd> <span data-i18n="openmenu">开菜单</span></p>
+
+      <div class="stp">
+        <div class="stp-n">1</div>
+        <div class="stp-b">
+          <span data-i18n="w1">下载安装器</span><br>
+          <a class="dl-btn" href="https://github.com/Cohenjikan/RhythmDoctorTrainer/releases/download/v2.2.0/RDTrainer-Installer-v2.2.0.zip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            RDTrainer-Installer.zip
+          </a>
+        </div>
+      </div>
+      <div class="stp">
+        <div class="stp-n">2</div>
+        <div class="stp-b" data-i18n-html="w2">解压，双击 <strong>INSTALL.bat</strong><span class="small"><br>它会自己找到游戏、装好一切</span></div>
+      </div>
+      <div class="stp">
+        <div class="stp-n">3</div>
+        <div class="stp-b" data-i18n-html="w3">开游戏，进关卡按 <strong>Insert</strong> — 完成 🎉</div>
+      </div>
+
+      <p class="fine">
+        <span data-i18n="trouble">遇到问题？</span>
+        <a href="https://github.com/Cohenjikan/RhythmDoctorTrainer#安装" target="_blank" rel="noopener"><span data-i18n="fulldoc">看完整说明</span> ↗</a>
+      </p>
+    </div>
+  </section>
+
+  <!-- ─── Screen 2: macOS ─── -->
+  <section class="panel" id="panel-macos" aria-hidden="true">
+    <div class="panel-inner">
+      <h2>
+        <svg viewBox="0 0 24 24" fill="#f2f1ef" aria-hidden="true"><path d="M16.7 12.9c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.9-1.6 0-3.1 1-4 2.4-1.7 3-.4 7.4 1.2 9.8.8 1.2 1.8 2.5 3.1 2.4 1.2 0 1.7-.8 3.2-.8s1.9.8 3.2.8c1.3 0 2.2-1.2 3-2.4.9-1.4 1.3-2.7 1.3-2.8-.1 0-2.6-1-2.7-3.8zM14.4 5.2c.7-.8 1.1-1.9 1-3.2-1 .1-2.2.7-2.9 1.5-.6.7-1.2 1.9-1 3 1.1.1 2.2-.5 2.9-1.3z"/></svg>
+        <span data-i18n="btn-mac">macOS 安装</span>
+      </h2>
+      <p class="key-hint"><span data-i18n="need">需要：Steam 版《节奏医生》</span> · <span data-i18n="menukey">游戏里按</span> <kbd>F3</kbd> <span data-i18n="openmenu">开菜单</span></p>
+
+      <div class="stp">
+        <div class="stp-n">1</div>
+        <div class="stp-b">
+          <span data-i18n="m1">复制这行命令</span>
+          <div class="cmd">
+            <code id="cmd-install">curl -fsSL https://raw.githubusercontent.com/MrTangLuyao/RhythmDoctorTrainerMac/refs/heads/main/install.sh | bash</code>
+            <button class="copy-btn" type="button" data-copy="cmd-install" data-i18n="copy">复制</button>
+          </div>
+        </div>
+      </div>
+      <div class="stp">
+        <div class="stp-n">2</div>
+        <div class="stp-b" data-i18n-html="m2">打开「<strong>终端</strong>」，粘贴，回车<span class="small"><br>没找到终端？按 ⌘+空格 搜 Terminal · 跑完大概一两分钟</span></div>
+      </div>
+      <div class="stp">
+        <div class="stp-n">3</div>
+        <div class="stp-b" data-i18n-html="m3">开游戏，按 <strong>F3</strong> — 完成 🎉</div>
+      </div>
+
+      <p class="fine">
+        <span data-i18n="mac-update">游戏更新后失效了？把第 1 步的命令再跑一次就好。</span><br><br>
+        <span data-i18n="uninstall">想卸载？终端里跑这行：</span>
+      </p>
+      <div class="cmd" style="max-width:640px">
+        <code id="cmd-uninstall">curl -fsSL https://raw.githubusercontent.com/MrTangLuyao/RhythmDoctorTrainerMac/refs/heads/main/uninstall.sh | bash</code>
+        <button class="copy-btn" type="button" data-copy="cmd-uninstall" data-i18n="copy">复制</button>
+      </div>
+      <p class="fine" style="border:none; padding-top:8px; margin-top:14px">
+        <span data-i18n="trouble">遇到问题？</span>
+        <a href="https://github.com/MrTangLuyao/RhythmDoctorTrainerMac" target="_blank" rel="noopener"><span data-i18n="fulldoc">看完整说明</span> ↗</a>
+      </p>
+    </div>
+  </section>
+
+  <button class="back-btn" id="back-btn" type="button" onclick="closePanels()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    <span data-i18n="back">返回</span>
+  </button>
+
+  <script>
+    /* ─── i18n — standalone key, detect from the device language list ─── */
+    const translations = {
+      zh: {
+        'title': '节奏医生修改器',
+        'tagline': '满分自动演奏 · 变速 · 关卡直达 — 免费开源',
+        'btn-win': 'Windows 安装',
+        'btn-mac': 'macOS 安装',
+        'foot-line': '免费开源 · 仅供单机娱乐与录制',
+        'need': '需要：Steam 版《节奏医生》',
+        'menukey': '游戏里按',
+        'openmenu': '开菜单',
+        'w1': '下载安装器',
+        'w2': '解压，双击 <strong>INSTALL.bat</strong><span class="small"><br>它会自己找到游戏、装好一切</span>',
+        'w3': '开游戏，进关卡按 <strong>Insert</strong> — 完成 🎉',
+        'm1': '复制这行命令',
+        'm2': '打开「<strong>终端</strong>」，粘贴，回车<span class="small"><br>没找到终端？按 ⌘+空格 搜 Terminal · 跑完大概一两分钟</span>',
+        'm3': '开游戏，按 <strong>F3</strong> — 完成 🎉',
+        'mac-update': '游戏更新后失效了？把第 1 步的命令再跑一次就好。',
+        'uninstall': '想卸载？终端里跑这行：',
+        'trouble': '遇到问题？',
+        'fulldoc': '看完整说明',
+        'copy': '复制',
+        'copied': '已复制 ✓',
+        'back': '返回'
+      },
+      en: {
+        'title': '节奏医生修改器',
+        'tagline': 'Perfect autoplay · speed control · level jump — free & open source',
+        'btn-win': 'Install on Windows',
+        'btn-mac': 'Install on macOS',
+        'foot-line': 'Free & open source · single-player / recording use only',
+        'need': 'Needs: Rhythm Doctor on Steam',
+        'menukey': 'press',
+        'openmenu': 'in-game for the menu',
+        'w1': 'Download the installer',
+        'w2': 'Unzip it, double-click <strong>INSTALL.bat</strong><span class="small"><br>it finds the game and sets up everything</span>',
+        'w3': 'Start the game, enter a level, press <strong>Insert</strong> — done 🎉',
+        'm1': 'Copy this command',
+        'm2': 'Open <strong>Terminal</strong>, paste, hit Enter<span class="small"><br>Can\'t find Terminal? ⌘+Space and type "Terminal" · takes a minute or two</span>',
+        'm3': 'Start the game, press <strong>F3</strong> — done 🎉',
+        'mac-update': 'Stopped working after a game update? Just run step 1 again.',
+        'uninstall': 'Want it gone? Run this in Terminal:',
+        'trouble': 'Having trouble?',
+        'fulldoc': 'Full guide',
+        'copy': 'Copy',
+        'copied': 'Copied ✓',
+        'back': 'Back'
+      }
+    };
+
+    /* detect from the device's preferred-language LIST (navigator.language
+       alone misreports when the first UI language differs from the list) */
+    function detectLang() {
+      const langs = (navigator.languages && navigator.languages.length)
+        ? navigator.languages : [navigator.language || 'en'];
+      for (const l of langs) {
+        const low = String(l).toLowerCase();
+        if (low.startsWith('zh')) return 'zh';
+        if (low.startsWith('en')) return 'en';
+      }
+      return 'en';
+    }
+    let currentLang = null;
+    try { const s = localStorage.getItem('rdt-lang'); if (s === 'zh' || s === 'en') currentLang = s; } catch (e) {}
+    if (!currentLang) currentLang = detectLang();
+
+    function applyLang(lang) {
+      const t = translations[lang];
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const k = el.getAttribute('data-i18n');
+        if (t[k]) el.textContent = t[k];
+      });
+      document.querySelectorAll('[data-i18n-html]').forEach(el => {
+        const k = el.getAttribute('data-i18n-html');
+        if (t[k]) el.innerHTML = t[k];
+      });
+      document.getElementById('lang-toggle').textContent = lang === 'zh' ? 'EN' : '中文';
+      document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+      document.title = lang === 'zh' ? '节奏医生修改器 — Rhythm Doctor Trainer' : 'Rhythm Doctor Trainer';
+    }
+    function toggleLang() {
+      currentLang = currentLang === 'zh' ? 'en' : 'zh';
+      try { localStorage.setItem('rdt-lang', currentLang); } catch (e) {}
+      applyLang(currentLang);
+    }
+
+    /* ─── panels — hash-driven so Back button & shared links work ─── */
+    function syncPanels() {
+      const h = location.hash.replace('#', '');
+      document.querySelectorAll('.panel').forEach(p => {
+        const open = p.id === 'panel-' + h;
+        p.classList.toggle('open', open);
+        p.setAttribute('aria-hidden', String(!open));
+      });
+      document.body.classList.toggle('panel-open', h === 'windows' || h === 'macos');
+    }
+    function openPanel(name) { location.hash = name; }
+    function closePanels() {
+      if (location.hash) history.back();
+      else syncPanels();
+    }
+    window.addEventListener('hashchange', syncPanels);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanels(); });
+    syncPanels();
+
+    /* ─── copy buttons ─── */
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const code = document.getElementById(btn.dataset.copy);
+        try {
+          await navigator.clipboard.writeText(code.textContent.trim());
+          btn.textContent = translations[currentLang]['copied'];
+          btn.classList.add('ok');
+          setTimeout(() => {
+            btn.textContent = translations[currentLang]['copy'];
+            btn.classList.remove('ok');
+          }, 1600);
+        } catch (e) {}
+      });
+    });
+
+    applyLang(currentLang);
+  </script>
+</body>
+</html>
